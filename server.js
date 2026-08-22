@@ -270,7 +270,8 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       assertId(body.pane_id, "pane_id");
       assertText(body.text, "text");
-      await runHerdr(["pane", "send-text", body.pane_id, `${body.text}\n`]);
+      await runHerdr(["pane", "send-text", body.pane_id, body.text]);
+      await runHerdr(["pane", "send-keys", body.pane_id, "Enter"]);
       return send(res, 200, await readAgentTarget(body.pane_id, 160, body.format));
     }
 
