@@ -13,6 +13,11 @@ const herdrBin = process.env.HERDR_BIN || "herdr";
 const token = process.env.HERDR_REMOTE_TOKEN || "";
 
 const jsonHeaders = { "content-type": "application/json; charset=utf-8" };
+
+// Security boundary, not a convenience: this server is reachable across the
+// tailnet and `herdr pane send-keys` drives live agent sessions, so only these
+// exact key names may ever reach the CLI. Never widen to arbitrary input.
+const ALLOWED_PANE_KEYS = new Set(["Up", "Down", "Left", "Right", "Enter", "Escape"]);
 const staticTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -272,6 +277,16 @@ async function handleApi(req, res, url) {
       assertText(body.text, "text");
       await runHerdr(["pane", "send-text", body.pane_id, body.text]);
       await runHerdr(["pane", "send-keys", body.pane_id, "Enter"]);
+      return send(res, 200, await readAgentTarget(body.pane_id, 160, body.format));
+    }
+
+    if (req.method === "POST" && pathname === "/api/pane/keys") {
+      const body = await readBody(req);
+      assertId(body.pane_id, "pane_id");
+      if (typeof body.key !== "string" || !ALLOWED_PANE_KEYS.has(body.key)) {
+        return send(res, 400, { error: "Unsupported key" });
+      }
+      await runHerdr(["pane", "send-keys", body.pane_id, body.key]);
       return send(res, 200, await readAgentTarget(body.pane_id, 160, body.format));
     }
 

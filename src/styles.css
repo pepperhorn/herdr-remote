@@ -33,7 +33,9 @@ body,
 
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -88,7 +90,10 @@ h2 {
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -97,8 +102,9 @@ h2 {
   display: flex;
   flex-direction: column;
   inset: 0;
-  min-height: 100vh;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
   position: fixed;
   width: 100vw;
   z-index: 20;
@@ -169,6 +175,7 @@ h2 {
 }
 
 .workspace-nav {
+  min-height: 0;
   overflow: auto;
   padding: 14px;
 }
@@ -306,9 +313,10 @@ h2 {
 
 .main {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  min-height: 100vh;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .main-header {
@@ -318,14 +326,17 @@ h2 {
   gap: 16px;
   justify-content: space-between;
   min-height: 48px;
+  min-width: 0;
   padding: 7px 12px;
 }
 
 .main-heading {
   align-items: center;
   display: flex;
+  flex: 1 1 auto;
   gap: 10px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .open-sidebar-button {
@@ -336,16 +347,24 @@ h2 {
   width: 36px;
 }
 
+.selected-meta {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .selected-line {
   align-items: center;
   display: flex;
+  flex: 1 1 auto;
   gap: 8px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .selected-title {
   font-size: 15px;
   font-weight: 750;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -393,6 +412,7 @@ h2 {
   border-bottom: 1px solid var(--line);
   display: flex;
   min-height: 42px;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 6px 0;
@@ -482,8 +502,73 @@ pre {
 }
 
 .terminal {
+  -webkit-overflow-scrolling: touch;
   font-variant-ligatures: none;
+  overscroll-behavior: contain;
   tab-size: 2;
+}
+
+.keypad {
+  align-items: center;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  padding: 10px 14px;
+}
+
+.keypad-dpad {
+  display: grid;
+  gap: 6px;
+  grid-template-areas:
+    ". up ."
+    "left down right";
+  grid-template-columns: repeat(3, 44px);
+}
+
+.keypad-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.btn-key {
+  height: 44px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+  width: 44px;
+}
+
+.btn-key:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn-key-up {
+  grid-area: up;
+}
+
+.btn-key-left {
+  grid-area: left;
+}
+
+.btn-key-down {
+  grid-area: down;
+}
+
+.btn-key-right {
+  grid-area: right;
+}
+
+.btn-key-esc {
+  font-size: 12px;
+  font-weight: 600;
+  width: 56px;
+}
+
+.btn-key-enter {
+  width: 56px;
 }
 
 .composer {
@@ -551,11 +636,11 @@ select:focus {
   }
 
   .sidebar {
-    min-height: 100vh;
+    min-height: 0;
   }
 
   .main {
-    min-height: 100vh;
+    min-height: 0;
   }
 
   .composer {
@@ -563,9 +648,13 @@ select:focus {
     grid-template-columns: 1fr;
   }
 
-  .header-controls,
   .actions {
     flex-wrap: wrap;
+  }
+
+  .header-controls {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
   }
 
   .tab-list {

@@ -1,7 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Convert from "ansi-to-html";
 import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  CornerDownLeft,
   FileText,
   Info,
   KeyRound,
@@ -259,10 +264,37 @@ function MainPanel({
   onRead,
   onExplain,
   onSubmit,
-  onRun
+  onRun,
+  onKey
 }) {
   const [draft, setDraft] = useState("");
   const [command, setCommand] = useState("");
+  const terminalRef = useRef(null);
+  // Auto-read replaces the <pre> innerHTML every ~2s, which resets scrollTop.
+  // Track whether the reader was pinned to the bottom (and where it sat) so a
+  // refresh keeps live-tailing without yanking a user out of scrollback.
+  const scrollStateRef = useRef({ pinned: true, top: 0 });
+
+  function recordScrollState() {
+    const node = terminalRef.current;
+    if (!node) return;
+    scrollStateRef.current = {
+      pinned: node.scrollHeight - node.scrollTop - node.clientHeight <= 40,
+      top: node.scrollTop
+    };
+  }
+
+  useLayoutEffect(() => {
+    const node = terminalRef.current;
+    if (!node) return;
+    const { pinned, top } = scrollStateRef.current;
+    if (pinned) {
+      node.scrollTop = node.scrollHeight;
+    } else {
+      node.scrollTop = top;
+    }
+  }, [transcript]);
+
   const selectedPane = tabPanes.find((pane) => pane.pane_id === selectedPaneId) || tabPanes[0];
   const canSend = Boolean(selectedPane?.pane_id);
   const canSubmitDraft = canSend && Boolean(draft.trim());
@@ -293,7 +325,7 @@ function MainPanel({
           <button type="button" className="open-sidebar-button" onClick={onOpenSidebar} title="Open workspaces" aria-label="Open workspaces">
             <PanelLeftOpen size={16} />
           </button>
-          <div>
+          <div className="selected-meta">
             <div className="selected-line">
               <span className={`status-dot ${selectedStatus}`} />
               <span className="selected-title">{selectedLabel}</span>
@@ -327,10 +359,37 @@ function MainPanel({
       <section className="reader-panel">
         <pre
           className="terminal"
+          ref={terminalRef}
+          onScroll={recordScrollState}
           dangerouslySetInnerHTML={{
             __html: transcript ? terminalHtml(transcript) : "Select a tab to stream the active pane."
           }}
         />
+      </section>
+
+      <section className="keypad">
+        <div className="keypad-dpad">
+          <button type="button" className="btn-key btn-key-up" disabled={!canSend} title="Arrow up" aria-label="Arrow up" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Up")}>
+            <ArrowUp size={18} />
+          </button>
+          <button type="button" className="btn-key btn-key-left" disabled={!canSend} title="Arrow left" aria-label="Arrow left" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Left")}>
+            <ArrowLeft size={18} />
+          </button>
+          <button type="button" className="btn-key btn-key-down" disabled={!canSend} title="Arrow down" aria-label="Arrow down" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Down")}>
+            <ArrowDown size={18} />
+          </button>
+          <button type="button" className="btn-key btn-key-right" disabled={!canSend} title="Arrow right" aria-label="Arrow right" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Right")}>
+            <ArrowRight size={18} />
+          </button>
+        </div>
+        <div className="keypad-actions">
+          <button type="button" className="btn-key btn-key-esc" disabled={!canSend} title="Escape" aria-label="Escape" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Escape")}>
+            Esc
+          </button>
+          <button type="button" className="btn-key btn-key-enter" disabled={!canSend} title="Enter" aria-label="Enter" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Enter")}>
+            <CornerDownLeft size={18} />
+          </button>
+        </div>
       </section>
 
       <section className="composer">
@@ -518,6 +577,14 @@ function App() {
     await refresh();
   }
 
+  async function sendKeyToPane(paneId, key) {
+    const result = await request("/api/pane/keys", token, {
+      method: "POST",
+      body: JSON.stringify({ pane_id: paneId, key, format: "ansi" })
+    });
+    setTranscript(result.read?.text || "Key sent.");
+  }
+
   async function runInPane(paneId, command) {
     const result = await request("/api/pane/run", token, {
       method: "POST",
@@ -613,6 +680,7 @@ function App() {
         onExplain={explainAgent}
         onSubmit={submitToPane}
         onRun={runInPane}
+        onKey={sendKeyToPane}
       />
     </div>
   );
