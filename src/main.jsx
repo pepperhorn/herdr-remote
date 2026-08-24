@@ -398,7 +398,7 @@ function MainPanel({
           <textarea
             id="prompt"
             value={draft}
-            placeholder="Send text to the selected pane and press Enter"
+            placeholder="Send text to the selected pane"
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
