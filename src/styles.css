@@ -519,7 +519,6 @@ pre {
 
 .keypad-row {
   display: flex;
-  flex-wrap: nowrap;
   gap: 6px;
   justify-content: center;
   max-width: 330px;

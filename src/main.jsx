@@ -384,7 +384,7 @@ function MainPanel({
           <button type="button" className="btn-key" disabled={!canSend} title="Arrow right" aria-label="Arrow right" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Right")}>
             <ArrowRight size={18} />
           </button>
-          <button type="button" className="btn-key btn-key-enter" disabled={!canSend} title="Return" aria-label="Return" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Enter")}>
+          <button type="button" className="btn-key" disabled={!canSend} title="Return" aria-label="Return" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Enter")}>
             <CornerDownLeft size={18} />
           </button>
         </div>
