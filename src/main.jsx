@@ -368,25 +368,23 @@ function MainPanel({
       </section>
 
       <section className="keypad">
-        <div className="keypad-dpad">
-          <button type="button" className="btn-key btn-key-up" disabled={!canSend} title="Arrow up" aria-label="Arrow up" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Up")}>
-            <ArrowUp size={18} />
-          </button>
-          <button type="button" className="btn-key btn-key-left" disabled={!canSend} title="Arrow left" aria-label="Arrow left" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Left")}>
-            <ArrowLeft size={18} />
-          </button>
-          <button type="button" className="btn-key btn-key-down" disabled={!canSend} title="Arrow down" aria-label="Arrow down" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Down")}>
-            <ArrowDown size={18} />
-          </button>
-          <button type="button" className="btn-key btn-key-right" disabled={!canSend} title="Arrow right" aria-label="Arrow right" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Right")}>
-            <ArrowRight size={18} />
-          </button>
-        </div>
-        <div className="keypad-actions">
+        <div className="keypad-row">
           <button type="button" className="btn-key btn-key-esc" disabled={!canSend} title="Escape" aria-label="Escape" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Escape")}>
             Esc
           </button>
-          <button type="button" className="btn-key btn-key-enter" disabled={!canSend} title="Enter" aria-label="Enter" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Enter")}>
+          <button type="button" className="btn-key" disabled={!canSend} title="Arrow left" aria-label="Arrow left" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Left")}>
+            <ArrowLeft size={18} />
+          </button>
+          <button type="button" className="btn-key" disabled={!canSend} title="Arrow up" aria-label="Arrow up" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Up")}>
+            <ArrowUp size={18} />
+          </button>
+          <button type="button" className="btn-key" disabled={!canSend} title="Arrow down" aria-label="Arrow down" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Down")}>
+            <ArrowDown size={18} />
+          </button>
+          <button type="button" className="btn-key" disabled={!canSend} title="Arrow right" aria-label="Arrow right" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Right")}>
+            <ArrowRight size={18} />
+          </button>
+          <button type="button" className="btn-key btn-key-enter" disabled={!canSend} title="Return" aria-label="Return" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Enter")}>
             <CornerDownLeft size={18} />
           </button>
         </div>
