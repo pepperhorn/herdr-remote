@@ -513,31 +513,25 @@ pre {
   background: var(--panel);
   border-top: 1px solid var(--line);
   display: flex;
-  gap: 18px;
   justify-content: center;
-  padding: 10px 14px;
+  padding: 8px 14px;
 }
 
-.keypad-dpad {
-  display: grid;
+.keypad-row {
+  display: flex;
   gap: 6px;
-  grid-template-areas:
-    ". up ."
-    "left down right";
-  grid-template-columns: repeat(3, 44px);
-}
-
-.keypad-actions {
-  display: grid;
-  gap: 6px;
+  justify-content: center;
+  max-width: 330px;
+  width: 100%;
 }
 
 .btn-key {
-  height: 44px;
+  flex: 1 1 0;
+  height: 40px;
   justify-content: center;
-  min-height: 44px;
+  min-height: 40px;
+  min-width: 0;
   padding: 0;
-  width: 44px;
 }
 
 .btn-key:disabled {
@@ -545,30 +539,9 @@ pre {
   opacity: 0.4;
 }
 
-.btn-key-up {
-  grid-area: up;
-}
-
-.btn-key-left {
-  grid-area: left;
-}
-
-.btn-key-down {
-  grid-area: down;
-}
-
-.btn-key-right {
-  grid-area: right;
-}
-
 .btn-key-esc {
   font-size: 12px;
   font-weight: 600;
-  width: 56px;
-}
-
-.btn-key-enter {
-  width: 56px;
 }
 
 .composer {
