@@ -96,3 +96,7 @@ tailscale serve --https=8443 off
 - Cross-site protections are always on, token or not. The server only answers to trusted Host names (blocks DNS-rebinding attacks), rejects browser requests whose Origin doesn't match, and only accepts JSON POST bodies, so a web page open on one of your devices can't forge commands.
 - The token is optional. On a private tailnet where you trust every device and user, the tailnet is the access control. Set a token if the tailnet is shared with others or you want defence in depth. The server prints a warning at startup when it listens beyond localhost without a token.
 - The on-screen keys are limited to a fixed allowlist of key names on the server.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
