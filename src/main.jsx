@@ -474,6 +474,9 @@ function MainPanel({
       </section>
 
       <section className="keypad">
+        <button type="button" className="btn-key btn-key-esc" disabled={!canSend} title="Escape" aria-label="Escape" onClick={() => sendKey("Escape")}>
+          <span className="btn-key-label">Esc</span>
+        </button>
         <button type="button" className="btn-key btn-key-left" disabled={!canSend} title="Arrow left" aria-label="Arrow left" onClick={() => sendKey("Left")}>
           <ArrowLeft size={18} />
         </button>
@@ -500,10 +503,7 @@ function MainPanel({
         >
           <span className="btn-key-label">Ctrl</span>
         </button>
-        <button type="button" className="btn-key btn-key-esc" disabled={!canSend} title="Escape" aria-label="Escape" onClick={() => sendKey("Escape")}>
-          <span className="btn-key-label">Esc</span>
-        </button>
-        <button type="button" className="btn-key btn-key-enter" disabled={!canSend} title="Enter" aria-label="Enter" onClick={() => sendKey("Enter")}>
+        <button type="button" className="btn-key btn-key-return" disabled={!canSend} title="Return" aria-label="Return" onClick={() => sendKey("Enter")}>
           <CornerDownLeft size={18} />
         </button>
       </section>
