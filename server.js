@@ -1,4 +1,6 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
+import { isIP } from "node:net";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { spawn } from "node:child_process";
@@ -7,10 +9,24 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(root, "dist");
 
+// Settings come from the real environment first; .env fills in anything unset,
+// so `npm start`, pm2 and systemd all read the same file.
+try {
+  process.loadEnvFile(join(root, ".env"));
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 8787);
 const herdrBin = process.env.HERDR_BIN || "herdr";
 const token = process.env.HERDR_REMOTE_TOKEN || "";
+const allowedHosts = new Set(
+  (process.env.ALLOWED_HOSTS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 const jsonHeaders = { "content-type": "application/json; charset=utf-8" };
 
@@ -46,9 +62,63 @@ function send(res, status, body, headers = jsonHeaders) {
   }
 }
 
-function isAuthed(req, url = null) {
+function tokenMatches(candidate) {
+  if (typeof candidate !== "string") return false;
+  const digest = (value) => createHash("sha256").update(value).digest();
+  return timingSafeEqual(digest(candidate), digest(token));
+}
+
+// The query-string token exists only because EventSource cannot set headers,
+// so it is honoured for the stream endpoint alone.
+function isAuthed(req, url, { allowQueryToken = false } = {}) {
   if (!token) return true;
-  return req.headers.authorization === `Bearer ${token}` || url?.searchParams.get("access_token") === token;
+  const header = req.headers.authorization || "";
+  if (header.startsWith("Bearer ") && tokenMatches(header.slice(7))) return true;
+  return allowQueryToken && tokenMatches(url.searchParams.get("access_token"));
+}
+
+function hostnameOf(authority) {
+  // Host header minus its port; IPv6 literals arrive bracketed, e.g. [::1]:8787.
+  const match = /^\[([^\]]+)\](?::\d+)?$/.exec(authority) || /^([^:]+)(?::\d+)?$/.exec(authority);
+  return match ? match[1].toLowerCase() : "";
+}
+
+// Cross-site guard, enforced with or without a token. Any web page open in a
+// browser on a tailnet device can reach this server, so:
+//  - Host must be a name a DNS-rebinding attacker can't point at us: an IP,
+//    localhost, a single-label (MagicDNS short) name, *.ts.net, or ALLOWED_HOSTS.
+//  - A browser-sent Origin must match that Host.
+//  - POSTs must be JSON, which forces a CORS preflight this server never grants.
+function crossSiteRejection(req) {
+  const authority = (req.headers.host || "").toLowerCase();
+  const hostname = hostnameOf(authority);
+  const trustedHost =
+    hostname === "localhost" ||
+    isIP(hostname) !== 0 ||
+    !hostname.includes(".") ||
+    hostname.endsWith(".ts.net") ||
+    allowedHosts.has(hostname);
+  if (!hostname || !trustedHost) {
+    return [421, `Host "${hostname || "(missing)"}" is not allowed; add it to ALLOWED_HOSTS`];
+  }
+
+  const origin = req.headers.origin;
+  if (origin !== undefined) {
+    let originAuthority = "";
+    try {
+      originAuthority = new URL(origin).host.toLowerCase();
+    } catch {
+      // "null" or malformed origins never match.
+    }
+    if (originAuthority !== authority) {
+      return [403, "Cross-origin request rejected"];
+    }
+  }
+
+  if (req.method === "POST" && !(req.headers["content-type"] || "").toLowerCase().startsWith("application/json")) {
+    return [415, "POST body must be application/json"];
+  }
+  return null;
 }
 
 function readBody(req) {
@@ -175,7 +245,7 @@ async function readAgentTarget(target, lines, format = "text") {
 }
 
 async function streamAgentRead(req, res, url) {
-  if (!isAuthed(req, url)) {
+  if (!isAuthed(req, url, { allowQueryToken: true })) {
     return send(res, 401, { error: "Unauthorized" });
   }
 
@@ -225,6 +295,11 @@ async function streamAgentRead(req, res, url) {
 
 async function handleApi(req, res, url) {
   const pathname = url.pathname;
+
+  const rejection = crossSiteRejection(req);
+  if (rejection) {
+    return send(res, rejection[0], { error: rejection[1] });
+  }
 
   if (req.method === "GET" && pathname === "/api/agent/stream") {
     try {
@@ -350,4 +425,11 @@ const server = createServer(async (req, res) => {
 
 server.listen(port, host, () => {
   console.log(`herdrrmt listening on http://${host}:${port}`);
+  const loopback = host === "localhost" || host === "::1" || host.startsWith("127.");
+  if (!token && !loopback) {
+    console.warn(
+      "herdrrmt: HERDR_REMOTE_TOKEN is not set, so anyone who can reach this port can read and type into your panes. " +
+        "Fine on a private tailnet you trust; set a token for defence in depth."
+    );
+  }
 });
