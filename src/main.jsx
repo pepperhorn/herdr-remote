@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowRightToLine,
   ArrowUp,
   CornerDownLeft,
   FileText,
@@ -14,7 +15,11 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Moon,
   Send,
+  SquareTerminal,
+  Sun,
+  SunMoon,
   Wifi,
   WifiOff,
   X
@@ -30,13 +35,77 @@ if ("serviceWorker" in navigator) {
 }
 
 const attentionStatuses = new Set(["blocked", "done", "unknown"]);
-const ansiConverter = new Convert({
+const ansiOptions = {
   bg: "transparent",
   fg: "currentColor",
   newline: true,
   escapeXML: true,
   stream: false
-});
+};
+// The 16 basic ANSI colours default to a dark-terminal palette (bright yellow,
+// white) that vanishes on a light reader, so light mode gets darker shades.
+// Truecolor output from agents is emitted inline and passes through untouched.
+const ansiConverters = {
+  dark: new Convert(ansiOptions),
+  light: new Convert({
+    ...ansiOptions,
+    colors: {
+      0: "#1f262b", 1: "#b42323", 2: "#1d7a35", 3: "#8a6200",
+      4: "#2450b8", 5: "#9030a0", 6: "#0b7a86", 7: "#5d6974",
+      8: "#6b7680", 9: "#d13b3b", 10: "#25913f", 11: "#9c7400",
+      12: "#2d6bd2", 13: "#a63db5", 14: "#0e8d99", 15: "#1b2226"
+    }
+  })
+};
+
+const THEME_KEY = "herdrrmt-theme";
+const themeOrder = ["system", "light", "dark"];
+const themeBackgrounds = { dark: "#0f1113", light: "#f4f6f8" };
+
+function readThemePref() {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    return themeOrder.includes(stored) ? stored : "system";
+  } catch {
+    return "system";
+  }
+}
+
+// "system" leaves data-theme unset so the CSS prefers-color-scheme block
+// decides; an explicit pick stamps data-theme on <html> (index.html does the
+// same before first paint to avoid a dark flash).
+function useTheme() {
+  const [pref, setPref] = useState(readThemePref);
+  const [systemLight, setSystemLight] = useState(() => window.matchMedia("(prefers-color-scheme: light)").matches);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = (event) => setSystemLight(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  const resolved = pref === "system" ? (systemLight ? "light" : "dark") : pref;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (pref === "system") delete root.dataset.theme;
+    else root.dataset.theme = pref;
+    try {
+      if (pref === "system") localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, pref);
+    } catch {
+      // Storage blocked (private mode); the theme still applies for this visit.
+    }
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeBackgrounds[resolved]);
+  }, [pref, resolved]);
+
+  function cycleTheme() {
+    setPref((current) => themeOrder[(themeOrder.indexOf(current) + 1) % themeOrder.length]);
+  }
+
+  return { pref, resolved, cycleTheme };
+}
 
 function authHeaders(token) {
   const headers = { "content-type": "application/json" };
@@ -75,11 +144,11 @@ function attentionCountForWorkspace(workspace, agents) {
   return agents.filter((agent) => agent.workspace_id === workspace.workspace_id && attentionStatuses.has(agent.agent_status)).length;
 }
 
-function terminalHtml(value) {
-  return ansiConverter.toHtml(value || "");
+function terminalHtml(value, theme) {
+  return (ansiConverters[theme] || ansiConverters.dark).toHtml(value || "");
 }
 
-function Sidebar({ snapshot, selectedTabId, onClose, onCreateWorkspace, onCreateTab, onSelectTab, onRefresh, busy, onToken }) {
+function Sidebar({ snapshot, selectedTabId, onClose, onCreateWorkspace, onCreateTab, onSelectTab, onRefresh, busy, onToken, themePref, onCycleTheme }) {
   const workspaces = snapshot?.workspaces || [];
   const tabs = snapshot?.tabs || [];
   const agents = snapshot?.agents || [];
@@ -97,6 +166,9 @@ function Sidebar({ snapshot, selectedTabId, onClose, onCreateWorkspace, onCreate
           </button>
           <button type="button" onClick={onClose} title="Close sidebar" aria-label="Close sidebar">
             <X size={16} />
+          </button>
+          <button type="button" className="btn-theme-toggle" onClick={onCycleTheme} title={`Theme: ${themePref}`} aria-label={`Theme: ${themePref}`}>
+            {themePref === "light" ? <Sun size={16} /> : themePref === "dark" ? <Moon size={16} /> : <SunMoon size={16} />}
           </button>
           <button type="button" onClick={onToken} title="Set token" aria-label="Set token">
             <KeyRound size={16} />
@@ -265,11 +337,15 @@ function MainPanel({
   onExplain,
   onSubmit,
   onRun,
-  onKey
+  onKey,
+  theme
 }) {
   const [draft, setDraft] = useState("");
   const [command, setCommand] = useState("");
+  const [ctrlArmed, setCtrlArmed] = useState(false);
+  const [shellOpen, setShellOpen] = useState(false);
   const terminalRef = useRef(null);
+  const promptRef = useRef(null);
   // Auto-read replaces the <pre> innerHTML every ~2s, which resets scrollTop.
   // Track whether the reader was pinned to the bottom (and where it sat) so a
   // refresh keeps live-tailing without yanking a user out of scrollback.
@@ -296,6 +372,11 @@ function MainPanel({
   }, [transcript]);
 
   const selectedPane = tabPanes.find((pane) => pane.pane_id === selectedPaneId) || tabPanes[0];
+
+  // Ctrl armed for one pane must never fire into another (ctrl+c / ctrl+d).
+  useEffect(() => {
+    setCtrlArmed(false);
+  }, [selectedPane?.pane_id]);
   const canSend = Boolean(selectedPane?.pane_id);
   const canSubmitDraft = canSend && Boolean(draft.trim());
   const canRunCommand = canSend && Boolean(command.trim());
@@ -316,6 +397,35 @@ function MainPanel({
     if (!selectedPane || !command.trim()) return;
     await onRun(selectedPane.pane_id, command);
     setCommand("");
+    setShellOpen(false);
+  }
+
+  function sendKey(key) {
+    if (!selectedPane) return;
+    onKey(selectedPane.pane_id, key);
+  }
+
+  // Ctrl is a sticky modifier: arm it, then the next letter typed into the
+  // agent input goes out as ctrl+<letter> instead of landing in the draft.
+  function toggleCtrl() {
+    const next = !ctrlArmed;
+    setCtrlArmed(next);
+    if (next) promptRef.current?.focus();
+  }
+
+  function handleDraftChange(event) {
+    const { value, selectionStart } = event.target;
+    if (ctrlArmed) {
+      // Any input disarms Ctrl; only a single typed letter becomes a chord, so
+      // a stray digit or space can't leave it armed to eat a later letter.
+      setCtrlArmed(false);
+      const letter = value.length === draft.length + 1 ? value[selectionStart - 1] || "" : "";
+      if (selectedPane && /^[a-z]$/i.test(letter)) {
+        sendKey(`ctrl+${letter.toLowerCase()}`);
+        return;
+      }
+    }
+    setDraft(value);
   }
 
   return (
@@ -346,6 +456,9 @@ function MainPanel({
             <button type="button" onClick={() => selectedPane && onExplain(selectedPane.pane_id)} disabled={!canSend} title="Explain agent status" aria-label="Explain agent status">
               <Info size={16} />
             </button>
+            <button type="button" className="btn-shell-drawer" onClick={() => setShellOpen(true)} disabled={!canSend} title="Shell command" aria-label="Shell command">
+              <SquareTerminal size={16} />
+            </button>
           </div>
         </div>
       </header>
@@ -362,91 +475,122 @@ function MainPanel({
           ref={terminalRef}
           onScroll={recordScrollState}
           dangerouslySetInnerHTML={{
-            __html: transcript ? terminalHtml(transcript) : "Select a tab to stream the active pane."
+            __html: transcript ? terminalHtml(transcript, theme) : "Select a tab to stream the active pane."
           }}
         />
       </section>
 
       <section className="keypad">
-        <div className="keypad-row">
-          <button type="button" className="btn-key btn-key-esc" disabled={!canSend} title="Escape" aria-label="Escape" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Escape")}>
-            Esc
-          </button>
-          <button type="button" className="btn-key" disabled={!canSend} title="Arrow left" aria-label="Arrow left" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Left")}>
-            <ArrowLeft size={18} />
-          </button>
-          <button type="button" className="btn-key" disabled={!canSend} title="Arrow up" aria-label="Arrow up" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Up")}>
-            <ArrowUp size={18} />
-          </button>
-          <button type="button" className="btn-key" disabled={!canSend} title="Arrow down" aria-label="Arrow down" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Down")}>
-            <ArrowDown size={18} />
-          </button>
-          <button type="button" className="btn-key" disabled={!canSend} title="Arrow right" aria-label="Arrow right" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Right")}>
-            <ArrowRight size={18} />
-          </button>
-          <button type="button" className="btn-key" disabled={!canSend} title="Return" aria-label="Return" onClick={() => selectedPane && onKey(selectedPane.pane_id, "Enter")}>
-            <CornerDownLeft size={18} />
-          </button>
-        </div>
+        <button type="button" className="btn-key btn-key-esc" disabled={!canSend} title="Escape" aria-label="Escape" onClick={() => sendKey("Escape")}>
+          <span className="btn-key-label">Esc</span>
+        </button>
+        <button type="button" className="btn-key btn-key-left" disabled={!canSend} title="Arrow left" aria-label="Arrow left" onClick={() => sendKey("Left")}>
+          <ArrowLeft size={18} />
+        </button>
+        <button type="button" className="btn-key btn-key-up" disabled={!canSend} title="Arrow up" aria-label="Arrow up" onClick={() => sendKey("Up")}>
+          <ArrowUp size={18} />
+        </button>
+        <button type="button" className="btn-key btn-key-down" disabled={!canSend} title="Arrow down" aria-label="Arrow down" onClick={() => sendKey("Down")}>
+          <ArrowDown size={18} />
+        </button>
+        <button type="button" className="btn-key btn-key-right" disabled={!canSend} title="Arrow right" aria-label="Arrow right" onClick={() => sendKey("Right")}>
+          <ArrowRight size={18} />
+        </button>
+        <button type="button" className="btn-key btn-key-tab" disabled={!canSend} title="Tab" aria-label="Tab" onClick={() => sendKey("Tab")}>
+          <ArrowRightToLine size={18} />
+        </button>
+        <button
+          type="button"
+          className={`btn-key btn-key-ctrl ${ctrlArmed ? "armed" : ""}`}
+          disabled={!canSend}
+          title="Ctrl — then type a letter"
+          aria-label="Ctrl"
+          aria-pressed={ctrlArmed}
+          onClick={toggleCtrl}
+        >
+          <span className="btn-key-label">Ctrl</span>
+        </button>
+        <button type="button" className="btn-key btn-key-return" disabled={!canSend} title="Return" aria-label="Return" onClick={() => sendKey("Enter")}>
+          <CornerDownLeft size={18} />
+        </button>
       </section>
 
       <section className="composer">
         <div className="composer-block">
-          <label htmlFor="prompt">Agent input</label>
-          <textarea
-            id="prompt"
-            value={draft}
-            placeholder="Send text to the selected pane"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="send"
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
-              event.preventDefault();
-              submitDraft();
-            }}
-          />
-          <button
-            type="button"
-            disabled={!canSubmitDraft}
-            onClick={submitDraft}
-          >
-            <Send size={16} />
-            Submit to Agent
-          </button>
-        </div>
-
-        <div className="composer-block compact">
-          <label htmlFor="command">Shell command</label>
-          <div className="command-row">
-            <input
-              id="command"
-              value={command}
-              placeholder="Run in selected pane"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint="go"
-              onChange={(event) => setCommand(event.target.value)}
+          <div className="prompt-row">
+            <textarea
+              id="prompt"
+              ref={promptRef}
+              value={draft}
+              aria-label="Agent input"
+              placeholder={ctrlArmed ? "Ctrl armed: type a letter" : "Send text to the selected pane"}
+              enterKeyHint="send"
+              onChange={handleDraftChange}
               onKeyDown={(event) => {
-                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
                 event.preventDefault();
-                runCommand();
+                submitDraft();
               }}
             />
             <button
               type="button"
-              disabled={!canRunCommand}
-              onClick={runCommand}
+              className="btn-submit-agent"
+              disabled={!canSubmitDraft}
+              onClick={submitDraft}
+              title="Submit to agent"
+              aria-label="Submit to agent"
             >
-              <Play size={16} />
-              Run
+              <Send size={18} />
             </button>
           </div>
         </div>
+
       </section>
+
+      {shellOpen ? (
+        <>
+          <div className="shell-drawer-backdrop" onClick={() => setShellOpen(false)} />
+          <section className="shell-drawer" role="dialog" aria-label="Shell command">
+            <div className="shell-drawer-header">
+              <label htmlFor="command">Shell command</label>
+              <button type="button" className="shell-drawer-close" onClick={() => setShellOpen(false)} title="Close" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="command-row">
+              <input
+                id="command"
+                value={command}
+                placeholder="Run in selected pane"
+                autoFocus
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="go"
+                onChange={(event) => setCommand(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setShellOpen(false);
+                    return;
+                  }
+                  if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                  event.preventDefault();
+                  runCommand();
+                }}
+              />
+              <button
+                type="button"
+                className="btn-run-command"
+                disabled={!canRunCommand}
+                onClick={runCommand}
+              >
+                <Play size={16} />
+                Run
+              </button>
+            </div>
+          </section>
+        </>
+      ) : null}
     </main>
   );
 }
@@ -463,6 +607,7 @@ function App() {
   const [autoRead, setAutoRead] = useState(true);
   const [streamState, setStreamState] = useState("idle");
   const streamRef = useRef(null);
+  const { pref: themePref, resolved: theme, cycleTheme } = useTheme();
 
   const selectedTab = useMemo(() => {
     return snapshot?.tabs?.find((tab) => tab.tab_id === selectedTabId) || null;
@@ -652,6 +797,8 @@ function App() {
           onSelectTab={selectTab}
           onRefresh={refresh}
           busy={busy}
+          themePref={themePref}
+          onCycleTheme={cycleTheme}
           onToken={() => {
             promptToken();
             refresh();
@@ -679,6 +826,7 @@ function App() {
         onSubmit={submitToPane}
         onRun={runInPane}
         onKey={sendKeyToPane}
+        theme={theme}
       />
     </div>
   );

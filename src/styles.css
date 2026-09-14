@@ -15,6 +15,78 @@
   --terminal-text: #d9dee2;
   --input-bg: var(--terminal-bg);
   --input-text: var(--terminal-text);
+  --line-soft: rgba(48, 57, 67, 0.75);
+  --tab-bg: #11161a;
+  --ticker-bg: #15191d;
+  --hover-tint: rgba(104, 168, 255, 0.08);
+  --selected-tint: rgba(104, 168, 255, 0.13);
+  --armed-tint: rgba(104, 168, 255, 0.2);
+  --backdrop: rgba(0, 0, 0, 0.5);
+  --on-danger: #fff;
+  --badge-idle: #3b6f4b;
+  --badge-working: #3f678f;
+  --badge-danger: #8b4c4c;
+  --badge-done: #806834;
+}
+
+/* Light palette. Applied when the user picks light, or when they leave the
+   theme on "system" and the OS prefers light. Keep both blocks in sync. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6f8;
+  --sidebar: #eceff2;
+  --panel: #ffffff;
+  --panel-strong: #eef1f4;
+  --text: #1b2226;
+  --muted: #5d6974;
+  --line: #d4dae0;
+  --accent: #2c8546;
+  --warning: #9f6f14;
+  --danger: #c23b3b;
+  --focus: #2d6bd2;
+  --terminal-bg: #fbfbfc;
+  --terminal-text: #1f262b;
+  --line-soft: rgba(212, 218, 224, 0.8);
+  --tab-bg: #f8f9fb;
+  --ticker-bg: #ffffff;
+  --hover-tint: rgba(45, 107, 210, 0.06);
+  --selected-tint: rgba(45, 107, 210, 0.1);
+  --armed-tint: rgba(45, 107, 210, 0.14);
+  --backdrop: rgba(15, 17, 19, 0.35);
+  --badge-idle: #9fcfab;
+  --badge-working: #a8c3eb;
+  --badge-danger: #e4afaf;
+  --badge-done: #dbc38d;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #f4f6f8;
+    --sidebar: #eceff2;
+    --panel: #ffffff;
+    --panel-strong: #eef1f4;
+    --text: #1b2226;
+    --muted: #5d6974;
+    --line: #d4dae0;
+    --accent: #2c8546;
+    --warning: #9f6f14;
+    --danger: #c23b3b;
+    --focus: #2d6bd2;
+    --terminal-bg: #fbfbfc;
+    --terminal-text: #1f262b;
+    --line-soft: rgba(212, 218, 224, 0.8);
+    --tab-bg: #f8f9fb;
+    --ticker-bg: #ffffff;
+    --hover-tint: rgba(45, 107, 210, 0.06);
+    --selected-tint: rgba(45, 107, 210, 0.1);
+    --armed-tint: rgba(45, 107, 210, 0.14);
+    --backdrop: rgba(15, 17, 19, 0.35);
+    --badge-idle: #9fcfab;
+    --badge-working: #a8c3eb;
+    --badge-danger: #e4afaf;
+    --badge-done: #dbc38d;
+  }
 }
 
 * {
@@ -181,7 +253,7 @@ h2 {
 }
 
 .workspace-group {
-  border-bottom: 1px solid rgba(48, 57, 67, 0.7);
+  border-bottom: 1px solid var(--line-soft);
   padding: 14px 0;
 }
 
@@ -229,7 +301,7 @@ h2 {
   align-items: center;
   background: var(--danger);
   border-radius: 999px;
-  color: #fff;
+  color: var(--on-danger);
   display: inline-flex;
   font-size: 11px;
   height: 20px;
@@ -245,8 +317,8 @@ h2 {
 }
 
 .tab-link {
-  background: #11161a;
-  border-color: rgba(48, 57, 67, 0.75);
+  background: var(--tab-bg);
+  border-color: var(--line-soft);
   justify-content: space-between;
   min-height: 48px;
   padding: 8px 10px;
@@ -255,11 +327,11 @@ h2 {
 }
 
 .tab-link:hover {
-  background: rgba(104, 168, 255, 0.08);
+  background: var(--hover-tint);
 }
 
 .tab-link.selected {
-  background: rgba(104, 168, 255, 0.13);
+  background: var(--selected-tint);
   border-color: var(--focus);
 }
 
@@ -291,23 +363,23 @@ h2 {
 }
 
 .badge.idle {
-  border-color: #3b6f4b;
+  border-color: var(--badge-idle);
   color: var(--accent);
 }
 
 .badge.working {
-  border-color: #3f678f;
+  border-color: var(--badge-working);
   color: var(--focus);
 }
 
 .badge.blocked,
 .badge.unknown {
-  border-color: #8b4c4c;
+  border-color: var(--badge-danger);
   color: var(--danger);
 }
 
 .badge.done {
-  border-color: #806834;
+  border-color: var(--badge-done);
   color: var(--warning);
 }
 
@@ -429,12 +501,12 @@ h2 {
 
 .ticker-item,
 .attention-item {
-  background: #15191d;
+  background: var(--ticker-bg);
   flex: 0 0 auto;
 }
 
 .ticker-item {
-  border-color: rgba(48, 57, 67, 0.8);
+  border-color: var(--line-soft);
   min-height: 30px;
   padding: 4px 10px;
 }
@@ -497,7 +569,7 @@ pre {
   margin: 0;
   min-height: 0;
   overflow: auto;
-  padding: 14px;
+  padding: 10px 6px;
   white-space: pre-wrap;
 }
 
@@ -513,22 +585,16 @@ pre {
   background: var(--panel);
   border-top: 1px solid var(--line);
   display: flex;
-  justify-content: center;
-  padding: 8px 14px;
-}
-
-.keypad-row {
-  display: flex;
   gap: 6px;
   justify-content: center;
-  max-width: 330px;
-  width: 100%;
+  padding: 8px 10px;
 }
 
 .btn-key {
   flex: 1 1 0;
   height: 40px;
   justify-content: center;
+  max-width: 60px;
   min-height: 40px;
   min-width: 0;
   padding: 0;
@@ -539,18 +605,75 @@ pre {
   opacity: 0.4;
 }
 
-.btn-key-esc {
+.btn-key-label {
   font-size: 12px;
   font-weight: 600;
 }
 
+.btn-key-ctrl.armed {
+  background: var(--armed-tint);
+  border-color: var(--focus);
+  color: var(--focus);
+}
+
 .composer {
   background: var(--panel);
-  border-top: 1px solid var(--line);
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(320px, 1fr) minmax(260px, 420px);
-  padding: 12px 14px;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 14px 12px;
+}
+
+.shell-drawer-backdrop {
+  background: var(--backdrop);
+  inset: 0;
+  position: fixed;
+  z-index: 30;
+}
+
+.shell-drawer {
+  animation: shell-drawer-in 160ms ease-out;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  border-radius: 12px 12px 0 0;
+  bottom: 0;
+  display: grid;
+  gap: 8px;
+  left: 0;
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom));
+  position: fixed;
+  right: 0;
+  z-index: 31;
+}
+
+.shell-drawer-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.shell-drawer-header label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.shell-drawer-close {
+  height: 32px;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0;
+  width: 32px;
+}
+
+@keyframes shell-drawer-in {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
 }
 
 .composer-block {
@@ -586,6 +709,25 @@ input::placeholder {
 textarea {
   min-height: 78px;
   resize: vertical;
+}
+
+.prompt-row {
+  align-items: stretch;
+  display: flex;
+  gap: 8px;
+}
+
+.prompt-row textarea {
+  flex: 1 1 auto;
+  min-height: 64px;
+  min-width: 0;
+}
+
+.btn-submit-agent {
+  flex: 0 0 auto;
+  justify-content: center;
+  padding: 0;
+  width: 52px;
 }
 
 textarea:focus,
