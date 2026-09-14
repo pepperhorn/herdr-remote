@@ -8,6 +8,12 @@
     <meta name="apple-mobile-web-app-title" content="Herdrrmt">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Herdrrmt</title>
+    <script>
+      try {
+        var theme = localStorage.getItem("herdrrmt-theme");
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.svg">

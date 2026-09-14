@@ -17,7 +17,18 @@ const jsonHeaders = { "content-type": "application/json; charset=utf-8" };
 // Security boundary, not a convenience: this server is reachable across the
 // tailnet and `herdr pane send-keys` drives live agent sessions, so only these
 // exact key names may ever reach the CLI. Never widen to arbitrary input.
-const ALLOWED_PANE_KEYS = new Set(["Up", "Down", "Left", "Right", "Enter", "Escape"]);
+// Ctrl chords are enumerated ctrl+a..ctrl+z (herdr's own key syntax), not a
+// pattern — note ctrl+d sends EOF and will exit a bare shell.
+const ALLOWED_PANE_KEYS = new Set([
+  "Up",
+  "Down",
+  "Left",
+  "Right",
+  "Enter",
+  "Escape",
+  "Tab",
+  ..."abcdefghijklmnopqrstuvwxyz".split("").map((letter) => `ctrl+${letter}`)
+]);
 const staticTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
