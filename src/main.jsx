@@ -372,6 +372,11 @@ function MainPanel({
   }, [transcript]);
 
   const selectedPane = tabPanes.find((pane) => pane.pane_id === selectedPaneId) || tabPanes[0];
+
+  // Ctrl armed for one pane must never fire into another (ctrl+c / ctrl+d).
+  useEffect(() => {
+    setCtrlArmed(false);
+  }, [selectedPane?.pane_id]);
   const canSend = Boolean(selectedPane?.pane_id);
   const canSubmitDraft = canSend && Boolean(draft.trim());
   const canRunCommand = canSend && Boolean(command.trim());
@@ -410,10 +415,12 @@ function MainPanel({
 
   function handleDraftChange(event) {
     const { value, selectionStart } = event.target;
-    if (ctrlArmed && selectedPane && value.length === draft.length + 1) {
-      const letter = value[selectionStart - 1] || "";
-      if (/^[a-z]$/i.test(letter)) {
-        setCtrlArmed(false);
+    if (ctrlArmed) {
+      // Any input disarms Ctrl; only a single typed letter becomes a chord, so
+      // a stray digit or space can't leave it armed to eat a later letter.
+      setCtrlArmed(false);
+      const letter = value.length === draft.length + 1 ? value[selectionStart - 1] || "" : "";
+      if (selectedPane && /^[a-z]$/i.test(letter)) {
         sendKey(`ctrl+${letter.toLowerCase()}`);
         return;
       }
