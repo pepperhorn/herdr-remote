@@ -525,6 +525,7 @@ function MainPanel({
               aria-label="Agent input"
               placeholder={ctrlArmed ? "Ctrl armed: type a letter" : "Send text to the selected pane"}
               enterKeyHint="send"
+              autoCapitalize="off"
               onChange={handleDraftChange}
               onKeyDown={(event) => {
                 if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
